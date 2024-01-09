@@ -1,4 +1,4 @@
-module hlsdl
+module github.com/trong/hlsdl
 
 go 1.21
 
