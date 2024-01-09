@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/grafov/m3u8"
+	"gopkg.in/cheggaaa/pb.v1"
 )
 
 func init() {

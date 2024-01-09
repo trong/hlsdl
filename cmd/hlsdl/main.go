@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/canhlinh/hlsdl"
 	"github.com/spf13/cobra"
+	"github.com/trong/hlsdl"
 )
 
 var cmd = &cobra.Command{

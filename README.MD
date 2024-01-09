@@ -17,11 +17,11 @@ This is a library to support downloading a m3u8 file. All TS segments will be do
 
 Get the library
 ```
-go get github.com/canhlinh/hlsdl
+go get github.com/trong/hlsdl
 ```
 then import it to your code.
 ```
-import "github.com/canhlinh/hlsdl"
+import "github.com/trong/hlsdl"
 ```
 
 Sample:
@@ -32,7 +32,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/canhlinh/hlsdl"
+	"github.com/trong/hlsdl"
 )
 
 func main() {
@@ -78,4 +78,4 @@ Record a live stream video
 ./bin/hlsdl --url "http://cdn1.live-tv.od.ua:8081/bbb/bbbtv-abr/bbb/bbbtv-720p/chunks.m3u8?nimblesessionid=62115268" --record true
 ```
 
-## Get prebuild here https://github.com/canhlinh/hlsdl/releases *
+## Get prebuild here https://github.com/trong/hlsdl/releases *
