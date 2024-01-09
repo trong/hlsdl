@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/grafov/m3u8"
-	"gopkg.in/cheggaaa/pb.v1"
 )
 
 func init() {
@@ -72,6 +71,12 @@ func wait(wg *sync.WaitGroup) chan bool {
 }
 
 func (hlsDl *HlsDl) downloadSegment(segment *Segment) error {
+	//TODO правильно сделать continue
+	_, err := os.Stat(segment.Path)
+	if err == nil {
+		return nil
+	}
+
 	req, err := newRequest(segment.URI, hlsDl.headers)
 	if err != nil {
 		return err
