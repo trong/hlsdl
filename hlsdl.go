@@ -154,7 +154,7 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 			}
 
 			// last [hlsDl.workers] segments - check content length by HEAD request
-			for i := len(files) - 1; i > len(files)-(hlsDl.workers*2)-1 && i >= 0; i-- {
+			for i := len(files) - 1; i > len(files)-(hlsDl.workers*3)-1 && i >= 0; i-- {
 				for _, segment := range segments {
 					if segment.Path != files[i] {
 						continue
