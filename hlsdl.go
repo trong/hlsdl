@@ -34,6 +34,7 @@ type HlsDl struct {
 	filename            string
 	continueDownloading bool
 	checkAllSegments    bool
+	debug               bool
 }
 
 type Segment struct {
@@ -47,7 +48,7 @@ type DownloadResult struct {
 	SeqId uint64
 }
 
-func New(hlsURL string, headers map[string]string, dir string, workers int, enableBar bool, filename string, continueDownloading bool, checkAllSegments bool) *HlsDl {
+func New(hlsURL string, headers map[string]string, dir string, workers int, enableBar bool, filename string, continueDownloading bool, checkAllSegments bool, debug bool) *HlsDl {
 	if filename == "" {
 		filename = getFilename()
 	}
@@ -62,6 +63,7 @@ func New(hlsURL string, headers map[string]string, dir string, workers int, enab
 		filename:            filename,
 		continueDownloading: continueDownloading,
 		checkAllSegments:    checkAllSegments,
+		debug:               debug,
 	}
 
 	return hlsdl
@@ -135,9 +137,13 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 						l2, e2 := hlsDl.getSegmentSize(segment)
 						if e1 == nil && e2 == nil && l1 == l2 && l1 != 0 {
 							segment.Exists = true
-							fmt.Printf("🥳 Segment [%s] found. The same size. Skipped.\n", filepath.Base(segment.Path))
+							if hlsDl.debug {
+								fmt.Printf("🥳 Segment [%s] found. The same size. Skipped.\n", filepath.Base(segment.Path))
+							}
 						} else {
-							fmt.Printf("👠 Segment [%s] found. Size is defferent. Download again.\n", filepath.Base(segment.Path))
+							if hlsDl.debug {
+								fmt.Printf("👠 Segment [%s] found. Size is defferent. Download again.\n", filepath.Base(segment.Path))
+							}
 						}
 					}
 				}
@@ -163,9 +169,13 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 					l2, e2 := hlsDl.getSegmentSize(segment)
 					if e1 == nil && e2 == nil && l1 == l2 && l1 != 0 {
 						segment.Exists = true
-						fmt.Printf("🥳 Segment [%s] found. The same size. Skipped.\n", filepath.Base(segment.Path))
+						if hlsDl.debug {
+							fmt.Printf("🥳 Segment [%s] found. The same size. Skipped.\n", filepath.Base(segment.Path))
+						}
 					} else {
-						fmt.Printf("🛑 Segment [%s] found. Size is defferent (f:%d - s:%d). Download again.\n", filepath.Base(segment.Path), l1, l2)
+						if hlsDl.debug {
+							fmt.Printf("🛑 Segment [%s] found. Size is defferent (f:%d - s:%d). Download again.\n", filepath.Base(segment.Path), l1, l2)
+						}
 					}
 				}
 			}
