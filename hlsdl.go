@@ -152,8 +152,9 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 					if segment.Path != files[i] {
 						continue
 					}
-
-					if hlsDl.getFileSize(segment) == hlsDl.getSegmentSize(segment) {
+					l1, e1 := hlsDl.getFileSize(segment)
+					l2, e2 := hlsDl.getSegmentSize(segment)
+					if e1 == nil && e2 == nil && l1 == l2 && l1 != 0 {
 						segment.Exists = true
 						fmt.Printf("🥳 Segment [%s] found. The same size. Skipped.\n")
 					} else {
