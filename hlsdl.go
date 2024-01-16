@@ -165,7 +165,7 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 						segment.Exists = true
 						fmt.Printf("🥳 Segment [%s] found. The same size. Skipped.\n", filepath.Base(segment.Path))
 					} else {
-						fmt.Printf("🛑 Segment [%s] found. Size is defferent. Download again.\n", filepath.Base(segment.Path))
+						fmt.Printf("🛑 Segment [%s] found. Size is defferent (f:%d - s:%d). Download again.\n", filepath.Base(segment.Path), l1, l2)
 					}
 				}
 			}
