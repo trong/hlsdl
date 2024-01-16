@@ -111,6 +111,10 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 		return nil
 	}
 
+	for _, segment := range segments {
+		segName := fmt.Sprintf("seg%06d.ts", segment.SeqId)
+		segment.Path = filepath.Join(hlsDl.dir, segName)
+	}
 	if hlsDl.continueDownloading {
 		// check which segments are already exist
 		mask := filepath.Dir(segments[0].Path) + "/*.ts"
