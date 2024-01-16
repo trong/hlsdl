@@ -118,7 +118,9 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 
 	if hlsDl.continueDownloading {
 		// check which segments are already exist
-		mask := "\"" + filepath.Dir(segments[0].Path) + "\"" + "/*.ts"
+		mask := filepath.Dir(segments[0].Path) + "/*.ts"
+		mask = strings.ReplaceAll(mask, "[", "\\[")
+		mask = strings.ReplaceAll(mask, "]", "\\]")
 		files, err := filepath.Glob(mask)
 		if err != nil {
 			return err
