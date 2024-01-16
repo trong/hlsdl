@@ -59,8 +59,8 @@ func parseHlsSegments(hlsURL string, headers map[string]string) ([]*Segment, err
 	return segments, nil
 }
 
-func newRequest(url string, headers map[string]string) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func newRequest(url string, headers map[string]string, method string) (*http.Request, error) {
+	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func newRequest(url string, headers map[string]string) (*http.Request, error) {
 
 func getM3u8ListType(url string, headers map[string]string) (m3u8.Playlist, m3u8.ListType, error) {
 
-	req, err := newRequest(url, headers)
+	req, err := newRequest(url, headers, http.MethodGet)
 	if err != nil {
 		return nil, 0, err
 	}

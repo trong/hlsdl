@@ -24,19 +24,22 @@ func init() {
 
 // HlsDl present a HLS downloader
 type HlsDl struct {
-	client    *http.Client
-	headers   map[string]string
-	dir       string
-	hlsURL    string
-	workers   int
-	bar       *pb.ProgressBar
-	enableBar bool
-	filename  string
+	client              *http.Client
+	headers             map[string]string
+	dir                 string
+	hlsURL              string
+	workers             int
+	bar                 *pb.ProgressBar
+	enableBar           bool
+	filename            string
+	continueDownloading bool
+	checkAllSegments    bool
 }
 
 type Segment struct {
 	*m3u8.MediaSegment
-	Path string
+	Path   string
+	Exists bool
 }
 
 type DownloadResult struct {
@@ -44,19 +47,21 @@ type DownloadResult struct {
 	SeqId uint64
 }
 
-func New(hlsURL string, headers map[string]string, dir string, workers int, enableBar bool, filename string) *HlsDl {
+func New(hlsURL string, headers map[string]string, dir string, workers int, enableBar bool, filename string, continueDownloading bool, checkAllSegments bool) *HlsDl {
 	if filename == "" {
 		filename = getFilename()
 	}
 
 	hlsdl := &HlsDl{
-		hlsURL:    hlsURL,
-		dir:       dir,
-		client:    &http.Client{},
-		workers:   workers,
-		enableBar: enableBar,
-		headers:   headers,
-		filename:  filename,
+		hlsURL:              hlsURL,
+		dir:                 dir,
+		client:              &http.Client{},
+		workers:             workers,
+		enableBar:           enableBar,
+		headers:             headers,
+		filename:            filename,
+		continueDownloading: continueDownloading,
+		checkAllSegments:    checkAllSegments,
 	}
 
 	return hlsdl
@@ -72,13 +77,7 @@ func wait(wg *sync.WaitGroup) chan bool {
 }
 
 func (hlsDl *HlsDl) downloadSegment(segment *Segment) error {
-	//TODO правильно сделать continue
-	_, err := os.Stat(segment.Path)
-	if err == nil {
-		return nil
-	}
-
-	req, err := newRequest(segment.URI, hlsDl.headers)
+	req, err := newRequest(segment.URI, hlsDl.headers, http.MethodGet)
 	if err != nil {
 		return err
 	}
@@ -107,6 +106,61 @@ func (hlsDl *HlsDl) downloadSegment(segment *Segment) error {
 }
 
 func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
+	// empty set
+	if len(segments) == 0 {
+		return nil
+	}
+
+	if hlsDl.continueDownloading {
+		// check which segments are already exist
+		mask := filepath.Dir(segments[0].Path) + "/*.ts"
+		files, err := filepath.Glob(mask)
+		if err != nil {
+			return err
+		}
+
+		if hlsDl.checkAllSegments {
+			// request HEAD for all segments and compare ContentLength
+			for _, segment := range segments {
+				for _, file := range files {
+					if segment.Path == file {
+						if hlsDl.getFileSize(segment) == hlsDl.getSegmentSize(segment) {
+							segment.Exists = true
+							fmt.Printf("🥳 Segment [%s] found. The same size. Skipped.\n")
+						} else {
+							fmt.Printf("👠 Segment [%s] found. Size is defferent. Download again.\n")
+						}
+					}
+				}
+			}
+		} else {
+
+			// may be broken [hlsDl.workers] segments
+			for i := len(files) - 1 - hlsDl.workers; i >= 0; i-- {
+				for _, segment := range segments {
+					if segment.Path == files[i] {
+						segment.Exists = true
+					}
+				}
+			}
+
+			// last [hlsDl.workers] segments - check content length by HEAD request
+			for i := len(files) - 1; i >= len(files)-1-hlsDl.workers; i-- {
+				for _, segment := range segments {
+					if segment.Path != files[i] {
+						continue
+					}
+
+					if hlsDl.getFileSize(segment) == hlsDl.getSegmentSize(segment) {
+						segment.Exists = true
+						fmt.Printf("🥳 Segment [%s] found. The same size. Skipped.\n")
+					} else {
+						fmt.Printf("🛑 Segment [%s] found. Size is defferent. Download again.\n")
+					}
+				}
+			}
+		}
+	}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(hlsDl.workers)
@@ -121,26 +175,28 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 			defer wg.Done()
 
 			for segment := range segmentChan {
+				// download only non-existing segments
+				if !segment.Exists {
+					tried := 0
+				DOWNLOAD:
+					tried++
 
-				tried := 0
-			DOWNLOAD:
-				tried++
-
-				select {
-				case <-quitChan:
-					return
-				default:
-				}
-
-				if err := hlsDl.downloadSegment(segment); err != nil {
-					if strings.Contains(err.Error(), "connection reset by peer") && tried < 3 {
-						time.Sleep(time.Second)
-						log.Println("Retry download segment ", segment.SeqId)
-						goto DOWNLOAD
+					select {
+					case <-quitChan:
+						return
+					default:
 					}
 
-					downloadResultChan <- &DownloadResult{Err: err, SeqId: segment.SeqId}
-					return
+					if err := hlsDl.downloadSegment(segment); err != nil {
+						if strings.Contains(err.Error(), "connection reset by peer") && tried < 3 {
+							time.Sleep(time.Second)
+							log.Println("Retry download segment ", segment.SeqId)
+							goto DOWNLOAD
+						}
+
+						downloadResultChan <- &DownloadResult{Err: err, SeqId: segment.SeqId}
+						return
+					}
 				}
 
 				downloadResultChan <- &DownloadResult{SeqId: segment.SeqId}
@@ -152,7 +208,7 @@ func (hlsDl *HlsDl) downloadSegments(segments []*Segment) error {
 		defer close(segmentChan)
 
 		for _, segment := range segments {
-			segName := fmt.Sprintf("seg%d.ts", segment.SeqId)
+			segName := fmt.Sprintf("seg%06d.ts", segment.SeqId)
 			segment.Path = filepath.Join(hlsDl.dir, segName)
 
 			select {
@@ -248,4 +304,27 @@ func (hlsDl *HlsDl) Download() (string, error) {
 	}
 
 	return filepath, nil
+}
+
+func (hlsDl *HlsDl) getSegmentSize(segment *Segment) (int64, error) {
+	req, err := newRequest(segment.URI, hlsDl.headers, http.MethodHead)
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := hlsDl.client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close()
+
+	return res.ContentLength, nil
+}
+
+func (hlsDl *HlsDl) getFileSize(segment *Segment) (int64, error) {
+	fi, err := os.Stat(segment.Path)
+	if err != nil {
+		return 0, err
+	}
+	return fi.Size(), nil
 }
